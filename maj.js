@@ -9,8 +9,49 @@ sy = function(x){
 }
 
 
+var files = false
+function fichiers(){
+sy("vérification des fichiers...");
+const fs = require("node:fs")
 
+const files = [
+	{
+		name: "config.json", 
+		content: '{"token": "", "prefixe": ""}'
+	},
+	{
+		name: "version.json",
+		content: '{"version": "1.0.0"}'
+	}
+]
+var miss = []
+files.forEach(f => {
+	try {
+		const t = require("./"+f.name)
+	} catch(err){
+		miss.push(f)
+	}
+})
 
+if(miss.length == 0){
+	ok("vérification des fichiers terminée");
+} else {
+	er("il manque "+miss.length+" fichiers");
+	sy("écriture des fichiers manquants");
+	miss.forEach(m => {
+		sy("écriture du fichier: "+m.name+" ("+(miss.indexOf(m)+1)+"/"+miss.length+")...")
+		fs.appendFile(m.name, m.content, function(err){
+			if(err) er(err)
+			ok("écriture du fichier: "+m.name+" ("+(miss.indexOf(m)+1)+"/"+miss.length+") terminée")
+			if(miss.indexOf(m)+1 == miss.length) files = true;
+		})
+	})
+}
+}
+
+let ff = setInterval(() => {
+	if(!files) return;
+	clearInterval(ff);
 const readline = require("node:readline")
 const rl = readline.createInterface({
 	input: process.stdin,
@@ -110,3 +151,4 @@ client.on("ready", () => {
 client.on("message", async msg => {
 	
 })
+}, 2000)
