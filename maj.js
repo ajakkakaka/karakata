@@ -18,10 +18,6 @@ const files = [
 	{
 		name: "config.json", 
 		content: '{"token": "", "prefixe": ""}'
-	},
-	{
-		name: "version.json",
-		content: '{"version": "1.0.0"}'
 	}
 ]
 var miss = []
