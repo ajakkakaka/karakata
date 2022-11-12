@@ -10,7 +10,6 @@ sy = function(x){
 
 
 var files = false
-function fichiers(){
 sy("vérification des fichiers...");
 const fs = require("node:fs")
 
@@ -42,7 +41,6 @@ if(miss.length == 0){
 			if(miss.indexOf(m)+1 == miss.length) files = true;
 		})
 	})
-}
 }
 
 let ff = setInterval(() => {
