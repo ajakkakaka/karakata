@@ -9,7 +9,8 @@ sy = function(x){
 }
 
 
-var files = false
+var filles = false
+
 sy("vérification des fichiers...");
 const fs = require("node:fs")
 
@@ -30,6 +31,7 @@ files.forEach(f => {
 
 if(miss.length == 0){
 	ok("vérification des fichiers terminée");
+	filles = true
 } else {
 	er("il manque "+miss.length+" fichiers");
 	sy("écriture des fichiers manquants");
@@ -38,13 +40,14 @@ if(miss.length == 0){
 		fs.appendFile(m.name, m.content, function(err){
 			if(err) er(err)
 			ok("écriture du fichier: "+m.name+" ("+(miss.indexOf(m)+1)+"/"+miss.length+") terminée")
-			if(miss.indexOf(m)+1 == miss.length) files = true;
+			if(miss.indexOf(m)+1 == miss.length) filles = true;
 		})
 	})
 }
 
+
 let ff = setInterval(() => {
-	if(!files) return;
+	if(!filles) return;
 	clearInterval(ff);
 const readline = require("node:readline")
 const rl = readline.createInterface({
