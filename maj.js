@@ -1,4 +1,4 @@
-const version = 1.0.0
+const version = "1.0.0"
 const ok = function(x){
 	console.log("\x1b[32m[\x1b[0m  \x1b[33mok\x1b[0m  \x1b[32m]\x1b[0m "+x);
 },
