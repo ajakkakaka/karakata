@@ -17,7 +17,7 @@ const fs = require("node:fs")
 const files = [
 	{
 		name: "config.json", 
-		content: '{"token": "", "prefixe": ""}'
+		content: '{"token": "", "prefixe": ".", "style": 1, "embed": { "image": "","color": "FFFFFF"}'
 	}
 ]
 var miss = []
@@ -141,11 +141,47 @@ if(config.token){
 
 client.on("ready", () => {
 	ok("selfbot connecté à: "+client.user.username+"#"+client.user.discriminator+" avec succès")
-	
-	
+	rl.close()
 })
 
+const moment = require("moment")
 client.on("message", async msg => {
+	var prefix = config.prefixe
 	
+	
+
+	
+// ---------------#------########---------
+	if((msg.author.id != client.user.id) || !msg.content.startsWith(prefix)) return;
+	
+	const args = msg.content.slice(prefix.length).trim().split(/ +/),
+		cmd = args.shift().toLowerCase()
+	
+	
+	function style(x){
+		if(config.style === 1){
+			msg.edit("```\n"+x+"```").catch(e => er(e))
+		} else if(config.style === 2){
+			let embed = {
+				color: config.embed.color,
+				image: config.embed.image,
+				description: x,
+				footer: {
+					text: moment()
+				}
+			}
+			msg.edit({embeds: [embed]}).catch(e => er(e))
+		} else { 
+			config.style = 1
+		}
+	}
+	
+	if(cmd == "sex"){
+		msg.edit("caca").catch(e => er(e))
+	}
+	
+	if(cmd == "help"){
+		style("voici les commandes d'aide:")
+	}
 })
 }, 2000)
