@@ -154,7 +154,7 @@ function ftoken(){
 								client.login(resp.token)
 								config.token = resp.token
 								fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
-									if (err) console.log(err)
+									if (err) er(err)
 								})
 							} else {
 								er("email ou mot de passe invalide ("+resp+")")
@@ -231,7 +231,18 @@ client.on("messageCreate", async msg => {
 	}
 	
 	if(cmd == "help"){
-		style("voici les commandes d'aide:")
+		style("voici les commandes d'aide:\n\n> CONFIG\nsetstyle {1-2}\nsetprefix (prefix)\nsetcolor (color/hex)\nsetimage (image url)")
+	}
+	if(cmd == "setstyle"){
+		
+		if(!args[0] || parseInt(args[0]).isNaN || (parseInt(args[0]) === 0) || (parseInt(args[0]) > 2)) return msg.edit("`entrez un nombre entre 1 et 2`").catch(e => er(e))
+			if(config.style === parseInt(args[0])) return msg.edit("`déjà configuré sur "+args[0]+"`").catch(e => er(e))
+			config.style = parseInt(args[0])
+			fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+				if (err) er(err)
+				msg.edit("`style modifié avec succès`")
+			})
+		
 	}
 })
 }, 2000)
