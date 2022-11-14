@@ -8,9 +8,54 @@ er = function(x){
 sy = function(x){
 	console.log("\x1b[36m[\x1b[0m\x1b[33msystem\x1b[0m\x1b[36m]\x1b[0m "+x);
 }
+// installation des modules
 
 
+sy("vérification des modules...");
+const { exec } =  require("node:child_process");
+const modules = [
+	"node-fetch@2.6.6",
+	"discord.js-selfbot-v13@latest",
+	"moment@latest"
+]
+var manque = []
+modules.forEach(async(m) => {
+	try {
+		const t = require(m.split("@")[0])
+	} catch(err){
+	manque.push(m)
+	}
+})
+if(manque.length == 0){
+	ok("vérification des modules terminée");
+	
+} else {
+	er("il manque "+manque.length+" modules");
+	sy("installation des modules manquants");
+	manque.forEach(async(m) => {
+		sy("installation du module: "+m.split("@")[0]+" ("+ (manque.indexOf(m)+1)+"/"+manque.length+")...");
+		await exec("npm install "+m+" --no-bin-links", (error, stdout, stderr) => {
+			if(error){
+				er(error)
+			}
+			manque.shift()
+			
+			ok("installation du module: "+m.split("@")[0]+" terminée");
+			
+		})
+	})
+}
+
+
+//mise a jour
 var filles = false
+let time = setInterval(() => {
+if(manque.length > 0) return;
+
+clearInterval(time);
+
+const fetch = require("node-fetch")
+
 
 sy("vérification des fichiers...");
 const fs = require("node:fs")
@@ -19,6 +64,10 @@ const files = [
 	{
 		name: "config.json", 
 		content: '{"token": "", "prefixe": ".", "style": 1, "embed": { "image": "","color": "FFFFFF"}}'
+	},
+	{
+		name: "version.json",
+		content: '{"version": "0.0.0"}'
 	}
 ]
 var miss = []
@@ -46,7 +95,6 @@ if(miss.length == 0){
 	})
 }
 
-
 let ff = setInterval(() => {
 	if(!filles) return;
 	clearInterval(ff);
@@ -58,11 +106,12 @@ const rl = readline.createInterface({
 })
 sy("vérification du token...")
 const config = require("./config.json")
-const fetch = require("node-fetch")
-const Discord = require("discord.js-selfbot")
+const Discord = require("discord.js-selfbot-v13")
 const fs = require("node:fs")
 
-const client = new Discord.Client()
+const client = new Discord.Client({
+	checkUpdate: false                
+});
 //fonction par email/mdp
 function ftoken(){
 	er("\x1b[31maucun token valide, suivez les étapes ou tapez 0 pour arrêter le selfbot\x1b[0m")
@@ -146,7 +195,7 @@ client.on("ready", () => {
 })
 
 const moment = require("moment")
-client.on("message", async msg => {
+client.on("messageCreate", async msg => {
 	var prefix = config.prefixe
 	
 	
@@ -163,15 +212,15 @@ client.on("message", async msg => {
 		if(config.style === 1){
 			msg.edit("```\n"+x+"```").catch(e => er(e))
 		} else if(config.style === 2){
-			let embed = {
-				color: config.embed.color,
-				image: config.embed.image,
-				description: x,
-				footer: {
-					text: moment()
-				}
-			}
+			let embed = new Discord.WebEmbed({
+				shorten: true,
+				
+			})
+			.setTitle(client.user.tag)
+			.setDescription(x)
+			.setColor(config.embed.color || "FFFFFF")
 			msg.edit({embeds: [embed]}).catch(e => er(e))
+			
 		} else { 
 			config.style = 1
 		}
@@ -185,4 +234,5 @@ client.on("message", async msg => {
 		style("voici les commandes d'aide:")
 	}
 })
+}, 2000)
 }, 2000)
