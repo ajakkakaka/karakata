@@ -1,12 +1,23 @@
 const version = "1.0.0"
+function date(){
+	var d = new Date();
+	var h = d.getHours();
+	if(h < 10) h = "0"+h
+	var m = d.getMinutes();
+	if(m < 10) m = "0"+m
+	var s = d.getSeconds();
+	if(s < 10) s = "0"+s
+	
+	return h+":"+m+":"+s
+}
 const ok = function(x){
-	console.log("\x1b[32m[\x1b[0m  \x1b[33mok\x1b[0m  \x1b[32m]\x1b[0m "+x);
+	console.log("\x1b[32m[\x1b[0m  \x1b[33mok\x1b[0m  \x1b[32m]\x1b[0m["+date()+"] "+x);
 },
 er = function(x){
-	console.log("\x1b[31m[\x1b[0m\x1b[33merreur\x1b[0m\x1b[31m]\x1b[0m "+x);
+	console.log("\x1b[31m[\x1b[0m\x1b[33merreur\x1b[0m\x1b[31m]\x1b[0m["+date()+"] "+x);
 }
 sy = function(x){
-	console.log("\x1b[36m[\x1b[0m\x1b[33msystem\x1b[0m\x1b[36m]\x1b[0m "+x);
+	console.log("\x1b[36m[\x1b[0m\x1b[33msystem\x1b[0m\x1b[36m]\x1b[0m["+date()+"] "+x);
 }
 // installation des modules
 
@@ -63,11 +74,23 @@ const fs = require("node:fs")
 const files = [
 	{
 		name: "config.json", 
-		content: '{"token": "", "prefixe": ".", "style": 1, "embed": { "image": "","color": "FFFFFF"}}'
+		content: '{"token": "", "prefixe": ".", "embed": { "image": "","color": "FFFFFF"}}'
 	},
 	{
 		name: "version.json",
 		content: '{"version": "0.0.0"}'
+	},
+	{
+		name: "presence.json",
+		content: '{"twitch": "","multi":{"presences": ["j","a","c","o","b"], "type": "STREAMING"}, "activity": "", "emoji": "", "multiactiv": {"activ": ["j", "a", "c", "o", "b"], "emoji": ""} }'
+	},
+	{
+		name: "fun.json",
+		content: '{"reactusers": [], "reactemojis": ["🐵","🙈","🙉","🙊","👳","🇮🇱","🇿🇼","🇿🇲","🇿🇦","🇹🇷","🤡","😅","👵","🎅","🕵","🤵","👮","👷","⭐","🚿","😹"], "autodelete": []}'
+	},
+	{
+		name: "rpc.json",
+		content: '{}'
 	}
 ]
 var miss = []
@@ -128,19 +151,19 @@ function ftoken(){
 					fetch("https://discord.com/api/v9/auth/login", {
 						method: "POST",
 						body: JSON.stringify({
-							email: email,
-							password: mdp,
+							email: email,
+							password: mdp,
 							undelete:false,
 							captcha_key:null,
 							login_source:null,
 							gift_code_sku_id:null
 						}),
-						headers: {
-							"Content-Type": "application/json",
-							"x-fingerprint": "715952977180885042.yskHI7mK4iZWhTX7iXlXIcDovRc",
-							"x-super-properties" :Buffer.from(JSON.stringify({"os":"Windows","browser":"Chrome","device":"","browser_user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36","browser_version":"83.0.4103.61","os_version":"10","referring_domain":"discord.com","referrer_current":"","referring_domain_current":"","release_channel":"stable","client_build_number":60856,"client_event_source":null}), "utf-8").toString("base64"),
-							cookie: '__cfduid=d638ccef388c4ca5a94c97c547c7f0d9e1598555308; __cfruid=4d17c1a957fba3c0a08c74ea83114af675f7ef19-1598796039;'
-						 }
+						headers: {
+							"Content-Type": "application/json",
+							"x-fingerprint": "715952977180885042.yskHI7mK4iZWhTX7iXlXIcDovRc",
+							"x-super-properties" :Buffer.from(JSON.stringify({"os":"Windows","browser":"Chrome","device":"","browser_user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36","browser_version":"83.0.4103.61","os_version":"10","referring_domain":"discord.com","referrer_current":"","referring_domain_current":"","release_channel":"stable","client_build_number":60856,"client_event_source":null}), "utf-8").toString("base64"),
+							cookie: '__cfduid=d638ccef388c4ca5a94c97c547c7f0d9e1598555308; __cfruid=4d17c1a957fba3c0a08c74ea83114af675f7ef19-1598796039;'
+						 }
 					}).then(data => data.json()).then(resp => {
 												
 						if(resp.mfa) {
@@ -158,6 +181,7 @@ function ftoken(){
 								})
 							} else {
 								er("email ou mot de passe invalide ("+resp+")")
+								ftoken()
 							}
 						
 					})
@@ -173,7 +197,7 @@ if(config.token){
 		method: "GET",
 		headers: {
 			"authorization": config.token,
-			"Content-Type": "application/json",
+			"Content-Type": "application/json",
 		}
 	}).then(data => data.json()).then(resp => {
 		if(!resp.message){
@@ -194,6 +218,7 @@ client.on("ready", () => {
 	rl.close()
 })
 
+
 const moment = require("moment")
 client.on("messageCreate", async msg => {
 	var prefix = config.prefixe
@@ -208,41 +233,64 @@ client.on("messageCreate", async msg => {
 		cmd = args.shift().toLowerCase()
 	
 	
-	function style(x){
-		if(config.style === 1){
-			msg.edit("```\n"+x+"```").catch(e => er(e))
-		} else if(config.style === 2){
-			let embed = new Discord.WebEmbed({
-				shorten: true,
-				
-			})
-			.setTitle(client.user.tag)
-			.setDescription(x)
-			.setColor(config.embed.color || "FFFFFF")
-			msg.edit({embeds: [embed]}).catch(e => er(e))
-			
-		} else { 
-			config.style = 1
-		}
-	}
-	
 	if(cmd == "sex"){
-		msg.edit("caca").catch(e => er(e))
+		msg.delete().catch(e => er())
+		msg.edit("`caca`")
 	}
 	
 	if(cmd == "help"){
-		style("voici les commandes d'aide:\n\n> CONFIG\nsetstyle {1-2}\nsetprefix (prefix)\nsetcolor (color/hex)\nsetimage (image url)")
+		
+		
+		const textes = ["voici les commandes d'aide:\n\n> SETTINGS\nsetPrefix (prefix)\nsetColor (color/hex)\nsetImage (image url)\nrestart\nshutdown",
+				"> PRESENCE\nsetTwitch (twitch name)\naddMultiPresence (description)\ndelMultiPresence (presence)\nsetMultiType (STREAMING/LISTEN/WATCHING)\nsetActivity (description)\nsetEmoji (emoji)\naddMultiActivity (description)\naddMultiEmoji (emoji)"
+			]
+		
+		msg.edit("```\n"+textes.join("\n\n")+"```").catch(e => er(e))
 	}
-	if(cmd == "setstyle"){
+	
+	if(cmd == "setprefix"){
+		if(!args[0]) return msg.edit("`un préfixe est nécessaire`").catch(e => er(e))
 		
-		if(!args[0] || parseInt(args[0]).isNaN || (parseInt(args[0]) === 0) || (parseInt(args[0]) > 2)) return msg.edit("`entrez un nombre entre 1 et 2`").catch(e => er(e))
-			if(config.style === parseInt(args[0])) return msg.edit("`déjà configuré sur "+args[0]+"`").catch(e => er(e))
-			config.style = parseInt(args[0])
-			fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
-				if (err) er(err)
-				msg.edit("`style modifié avec succès`")
-			})
+		config.prefixe = args[0]
+		fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`prefixe modifié avec succès`").catch(e => er(e))
+		})
+	}
+	if(cmd == "setcolor"){
+		msg.delete().catch(e => er())
+		if(!args[0]) return msg.edit("`une couleur hex est nécessaire: https://www.color-hex.com/`").catch(e => er(e))
+		var matches = args[0].match(/^#(?:[0-9a-fA-F]{3}){1,2}$/i)
+		if(!matches) return msg.edit("`une couleur hex est nécessaire (ex: #FFFFFF): https://www.color-hex.com/`").catch(e => er(e))
+		config.embed.color = args[0]
+		fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("couleur modifiée avec succès").catch(e => er(e))
+		})
+	}
+	if(cmd == "setimage"){
+		msg.delete().catch(e => er())
+		if(!args[0]) return msg.edit("un lien image est nécessaire (jpeg/png/jpg)").catch(e => er(e))
 		
+		var matches = args[0].match(/^https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)\??.*$/gmi);
+		if(!matches) return msg.edit("`entrez un lien image valide (png/gif/webp/jpeg/jpg)`").catch(e => er(e))
+		config.embed.image = matches[0]
+		fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`image modifiée avec succès`").catch(e => er(e))
+		})
+	}
+	if(cmd == "shutdown"){
+		msg.edit("`shutdown du selfbot...`").catch(e => er(e)).then(() => process.exit())
+		
+	}
+	if(cmd == "restart"){
+		msg.edit("`restart en cours...`").catch(e => er(e)).then(msg => client.destroy()).then(() => {
+			
+				client.login(config.token)
+			
+		})
+		sy("restart du système en cours...")
 	}
 })
 }, 2000)
