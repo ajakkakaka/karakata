@@ -71,28 +71,35 @@ const fetch = require("node-fetch")
 sy("vérification des fichiers...");
 const fs = require("node:fs")
 
+
 const files = [
 	{
-		name: "config.json", 
+		name: "files/config.json", 
 		content: '{"token": "", "prefixe": ".", "embed": { "image": "","color": "FFFFFF"}}'
 	},
 	{
-		name: "version.json",
+		name: "files/version.json",
 		content: '{"version": "0.0.0"}'
 	},
 	{
-		name: "presence.json",
+		name: "files/presence.json",
 		content: '{"twitch": "","multi":{"presences": ["j","a","c","o","b"], "type": "STREAMING"}, "activity": "", "emoji": "", "multiactiv": {"activ": ["j", "a", "c", "o", "b"], "emoji": ""} }'
 	},
 	{
-		name: "fun.json",
+		name: "files/fun.json",
 		content: '{"reactusers": [], "reactemojis": ["🐵","🙈","🙉","🙊","👳","🇮🇱","🇿🇼","🇿🇲","🇿🇦","🇹🇷","🤡","😅","👵","🎅","🕵","🤵","👮","👷","⭐","🚿","😹"], "autodelete": []}'
 	},
 	{
-		name: "rpc.json",
+		name: "files/rpc.json",
 		content: '{}'
 	}
 ]
+
+try {
+	fs.mkdirSync("./files"); 
+} catch(e) { 
+	if ( e.code != 'EEXIST' ) er(e)
+}
 var miss = []
 files.forEach(f => {
 	try {
@@ -108,11 +115,11 @@ if(miss.length == 0){
 } else {
 	er("il manque "+miss.length+" fichiers");
 	sy("écriture des fichiers manquants");
-	miss.forEach(m => {
-		sy("écriture du fichier: "+m.name+" ("+(miss.indexOf(m)+1)+"/"+miss.length+")...")
-		fs.appendFile(m.name, m.content, function(err){
-			if(err) er(err)
-			ok("écriture du fichier: "+m.name+" ("+(miss.indexOf(m)+1)+"/"+miss.length+") terminée")
+	miss.forEach(async(m) => {
+		sy("écriture du fichier: "+m.name.split("/")[1]+" ("+(miss.indexOf(m)+1)+"/"+miss.length+")...")
+		await fs.appendFile(m.name, m.content, function(err){
+			if(err) return er(err)
+			ok("écriture du fichier: "+m.name.split("/")[1]+" ("+(miss.indexOf(m)+1)+"/"+miss.length+") terminée")
 			if(miss.indexOf(m)+1 == miss.length) filles = true;
 		})
 	})
@@ -128,10 +135,10 @@ const rl = readline.createInterface({
 	prompt: ""
 })
 sy("vérification du token...")
-const config = require("./config.json")
+const config = require("./files/config.json")
 const Discord = require("discord.js-selfbot-v13")
 const fs = require("node:fs")
-
+const dircfg = "./files/config.json"
 const client = new Discord.Client({
 	checkUpdate: false                
 });
@@ -176,7 +183,7 @@ function ftoken(){
 								ok("compte trouvé, patientez...")
 								client.login(resp.token)
 								config.token = resp.token
-								fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+								fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
 									if (err) er(err)
 								})
 							} else {
@@ -214,7 +221,7 @@ if(config.token){
 }
 
 client.on("ready", () => {
-	ok("selfbot connecté à: "+client.user.username+"#"+client.user.discriminator+" avec succès")
+	ok("selfbot connecté à: "+client.user.username+"#"+client.user.discriminator+", avec le prefixe: \x1b[35m"+config.prefixe+"\x1b[0m")
 	rl.close()
 })
 
@@ -234,7 +241,7 @@ client.on("messageCreate", async msg => {
 	
 	
 	if(cmd == "sex"){
-		msg.delete().catch(e => er())
+		
 		msg.edit("`caca`")
 	}
 	
@@ -252,35 +259,36 @@ client.on("messageCreate", async msg => {
 		if(!args[0]) return msg.edit("`un préfixe est nécessaire`").catch(e => er(e))
 		
 		config.prefixe = args[0]
-		fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+		fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
 			if (err) er(err)
 			msg.edit("`prefixe modifié avec succès`").catch(e => er(e))
 		})
 	}
 	if(cmd == "setcolor"){
-		msg.delete().catch(e => er())
+		
 		if(!args[0]) return msg.edit("`une couleur hex est nécessaire: https://www.color-hex.com/`").catch(e => er(e))
 		var matches = args[0].match(/^#(?:[0-9a-fA-F]{3}){1,2}$/i)
 		if(!matches) return msg.edit("`une couleur hex est nécessaire (ex: #FFFFFF): https://www.color-hex.com/`").catch(e => er(e))
 		config.embed.color = args[0]
-		fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+		fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
 			if (err) er(err)
-			msg.edit("couleur modifiée avec succès").catch(e => er(e))
+			msg.edit("`couleur modifiée avec succès`").catch(e => er(e))
 		})
 	}
 	if(cmd == "setimage"){
-		msg.delete().catch(e => er())
-		if(!args[0]) return msg.edit("un lien image est nécessaire (jpeg/png/jpg)").catch(e => er(e))
+		
+		if(!args[0]) return msg.edit("`un lien image est nécessaire (jpeg/png/jpg)`").catch(e => er(e))
 		
 		var matches = args[0].match(/^https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)\??.*$/gmi);
 		if(!matches) return msg.edit("`entrez un lien image valide (png/gif/webp/jpeg/jpg)`").catch(e => er(e))
 		config.embed.image = matches[0]
-		fs.writeFile('./config.json', JSON.stringify(config, null, 2), (err) => {
+		fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
 			if (err) er(err)
 			msg.edit("`image modifiée avec succès`").catch(e => er(e))
 		})
 	}
 	if(cmd == "shutdown"){
+		sy("shutdown du selfbot...")
 		msg.edit("`shutdown du selfbot...`").catch(e => er(e)).then(() => process.exit())
 		
 	}
