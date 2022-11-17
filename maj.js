@@ -45,7 +45,7 @@ if(manque.length == 0){
 	sy("installation des modules manquants");
 	manque.forEach(async(m) => {
 		sy("installation du module: "+m.split("@")[0]+" ("+ (manque.indexOf(m)+1)+"/"+manque.length+")...");
-		await exec("npm install "+m+" --no-bin-links", (error, stdout, stderr) => {
+		await exec("npm install "+m+" --no-bin-links --save", (error, stdout, stderr) => {
 			if(error){
 				er(error)
 			}
@@ -75,7 +75,7 @@ const fs = require("node:fs")
 const files = [
 	{
 		name: "files/config.json", 
-		content: '{"token": "", "prefixe": ".", "embed": { "image": "","color": "FFFFFF"}}'
+		content: '{"token": "", "prefixe": "//", "color": "#FFFFFF"}'
 	},
 	{
 		name: "files/version.json",
@@ -83,7 +83,7 @@ const files = [
 	},
 	{
 		name: "files/presence.json",
-		content: '{"twitch": "","multi":{"presences": ["j","a","c","o","b"], "type": "STREAMING"}, "activity": "", "emoji": "", "multiactiv": {"activ": ["j", "a", "c", "o", "b"], "emoji": ""} }'
+		content: '{"twitch": "","multi":{"presences": [{"number": 0, "description": "a"},{"number": 1, "description": "b"},{"number": 2, "description": "c"}], "type": "STREAMING"}, "multiactiv": {"activ": [{"number": 0, "description": "a"},{"number": 1, "description": "b"},{"number": 2, "description": "c"}], "emojis": [{"number": 0, "description": "0️⃣"},{"number": 1, "description": "1️⃣"},{"number": 2, "description": "2️⃣"}]} }'
 	},
 	{
 		name: "files/fun.json",
@@ -91,6 +91,10 @@ const files = [
 	},
 	{
 		name: "files/rpc.json",
+		content: '{}'
+	},
+	{
+		name: "files/backups.json",
 		content: '{}'
 	}
 ]
@@ -135,10 +139,16 @@ const rl = readline.createInterface({
 	prompt: ""
 })
 sy("vérification du token...")
-const config = require("./files/config.json")
+const config = require("./files/config.json"),
+presence = require("./files/presence.json")
+
+const dircfg = "./files/config.json",
+dirprs = "./files/presence.json"
+
+
 const Discord = require("discord.js-selfbot-v13")
 const fs = require("node:fs")
-const dircfg = "./files/config.json"
+
 const client = new Discord.Client({
 	checkUpdate: false                
 });
@@ -226,19 +236,26 @@ client.on("ready", () => {
 })
 
 
+const allinterval = []
 const moment = require("moment")
+var prefix = config.prefixe
 client.on("messageCreate", async msg => {
-	var prefix = config.prefixe
+	
 	
 	
 
 	
 // ---------------#------########---------
 	if((msg.author.id != client.user.id) || !msg.content.startsWith(prefix)) return;
-	
-	const args = msg.content.slice(prefix.length).trim().split(/ +/),
+	var args, 
+	cmd
+	if(config.prefixe.length > 0){
+		args = msg.content.slice(prefix.length).trim().split(/ +/),
 		cmd = args.shift().toLowerCase()
-	
+	} else {
+		args = msg.content.trim().split(/ +/),
+		cmd = args.shift().toLowerCase()
+	}
 	
 	if(cmd == "sex"){
 		
@@ -248,8 +265,9 @@ client.on("messageCreate", async msg => {
 	if(cmd == "help"){
 		
 		
-		const textes = ["voici les commandes d'aide:\n\n> SETTINGS\nsetPrefix (prefix)\nsetColor (color/hex)\nsetImage (image url)\nrestart\nshutdown",
-				"> PRESENCE\nsetTwitch (twitch name)\naddMultiPresence (description)\ndelMultiPresence (presence)\nsetMultiType (STREAMING/LISTEN/WATCHING)\nsetActivity (description)\nsetEmoji (emoji)\naddMultiActivity (description)\naddMultiEmoji (emoji)"
+		const textes = ["voici les commandes d'aide:\n\n> SETTINGS\nsetPrefix, setColor, restart, shutdown, reset",
+				"> HELP\nhelpStatus, helpSettings",
+				"> STATUS\nsetPresence, startMultiPresence, setActivity, startMultiActivity, setTwitch, setMultiType, addMultiPresence, delMultiPresence, addMultiActivity, addMultiEmoji, delMultiActivity, delMultiEmoji, listPresence, listActivity, listEmoji, clearStatus"
 			]
 		
 		msg.edit("```\n"+textes.join("\n\n")+"```").catch(e => er(e))
@@ -257,11 +275,15 @@ client.on("messageCreate", async msg => {
 	
 	if(cmd == "setprefix"){
 		if(!args[0]) return msg.edit("`un préfixe est nécessaire`").catch(e => er(e))
-		
+		if(config.prefixe === args[0]) return msg.edit("`prefixe déjà configuré sur "+args[0]+"`").catch(e => er(e))
+		if(args[0] === "cringe"){
+			config.prefixe = ""
+		} else {
 		config.prefixe = args[0]
+		}
 		fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
 			if (err) er(err)
-			msg.edit("`prefixe modifié avec succès`").catch(e => er(e))
+			msg.edit("`prefixe modifié avec succès ("+config.prefixe+")`").catch(e => er(e))
 		})
 	}
 	if(cmd == "setcolor"){
@@ -269,24 +291,14 @@ client.on("messageCreate", async msg => {
 		if(!args[0]) return msg.edit("`une couleur hex est nécessaire: https://www.color-hex.com/`").catch(e => er(e))
 		var matches = args[0].match(/^#(?:[0-9a-fA-F]{3}){1,2}$/i)
 		if(!matches) return msg.edit("`une couleur hex est nécessaire (ex: #FFFFFF): https://www.color-hex.com/`").catch(e => er(e))
-		config.embed.color = args[0]
+		if(config.color === args[0]) return msg.edit("`couleur déjà configurée sur "+args[0]+"`").catch(e => er(e))
+		config.color = args[0]
 		fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
 			if (err) er(err)
-			msg.edit("`couleur modifiée avec succès`").catch(e => er(e))
+			msg.edit("`couleur modifiée avec succès ("+args[0]+")`").catch(e => er(e))
 		})
 	}
-	if(cmd == "setimage"){
-		
-		if(!args[0]) return msg.edit("`un lien image est nécessaire (jpeg/png/jpg)`").catch(e => er(e))
-		
-		var matches = args[0].match(/^https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)\??.*$/gmi);
-		if(!matches) return msg.edit("`entrez un lien image valide (png/gif/webp/jpeg/jpg)`").catch(e => er(e))
-		config.embed.image = matches[0]
-		fs.writeFile(dircfg, JSON.stringify(config, null, 2), (err) => {
-			if (err) er(err)
-			msg.edit("`image modifiée avec succès`").catch(e => er(e))
-		})
-	}
+	
 	if(cmd == "shutdown"){
 		sy("shutdown du selfbot...")
 		msg.edit("`shutdown du selfbot...`").catch(e => er(e)).then(() => process.exit())
@@ -300,6 +312,236 @@ client.on("messageCreate", async msg => {
 		})
 		sy("restart du système en cours...")
 	}
+	if(cmd == "settwitch"){
+		if(!args[0]) return msg.edit("`un lien twitch est nécessaire (https://twitch.tv/...)`").catch(e => er(e))
+		var matches = args[0].match(/^(?:https?:\/\/)?(?:www\.|go\.)?twitch\.tv\/([a-z0-9_]+)($|\?)/g)
+		if(!matches) return msg.edit("`un lien twitch est nécessaire (https://twitch.tv/...)`").catch(e => er(e));
+		if(presence.twitch === args[0]) return msg.edit("`twitch déjà configuré sur "+args[0]+"`").catch(e => er(e))
+		
+		presence.twitch = args[0]
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`twitch modifié avec succès ("+args[0]+")`").catch(e => er(e))
+		})
+	}
+	if(cmd == "addmultipresence"){
+		if(!args[0]) return msg.edit("`une description est nécessaire`").catch(e => er(e))
+		if(args.join(" ").split("").length > 30) return msg.edit("`maximum 30 caractères`").catch(e => er(e))
+		presence.multi.presences.push({number: presence.multi.presences.length, description: args.join(" ")})
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`multi présence ajoutée avec succès ("+args.join(" ")+")`").catch(e => er(e))
+		})
+	}
+	if(cmd == "listpresence"){
+		if(presence.multi.presences.length === 0) return msg.edit("`aucune présence pour le moment`").catch(e => er(e))
+		sy("\x1b[35mliste des présences:\x1b[0m")
+		presence.multi.presences.forEach(async pr => {
+			await sy("[\x1b[35m"+pr.number+"\x1b[0m] "+pr.description)
+		})
+		msg.edit("`liste affichée dans la console`").catch(e => er(e))
+	}
+	if(cmd == "delmultipresence"){
+		if(!args[0]) return msg.edit("`entre le numéro de la présence à supprimer (listPresence pour voir la liste)`").catch(e => er(e))
+		const arg = parseInt(args[0])
+		if(presence.multi.presences.length === 0) return msg.edit("`aucune présence pour le moment`").catch(e => er(e))
+		if(arg.isNaN || (presence.multi.presences.length < (arg-1))) return msg.edit("`entre un numéro de présence à supprimer valide (listPresence pour voir la liste)`").catch(e => er(e))
+		descr = presence.multi.presences[arg].description
+		presence.multi.presences.splice(arg, 1)
+		presence.multi.presences.forEach(pr => {
+			if(pr.number <= arg) return;
+			pr.number = pr.number - 1
+		})
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`multi présence supprimée avec succès ("+descr+")`").catch(e => er(e))
+			
+		})
+	}
+	if(cmd == "addmultiactivity"){
+		if(!args[0]) return msg.edit("`une description est nécessaire`").catch(e => er(e))
+		if(args.join(" ").split("").length > 30) return msg.edit("`maximum 30 caractères`").catch(e => er(e))
+		presence.multiactiv.activ.push({number: presence.multiactiv.activ.length, description: args.join(" ")})
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`multi activité ajoutée avec succès ("+args.join(" ")+")`").catch(e => er(e))
+		})
+	}
+	if(cmd == "listactivity"){
+		if(presence.multiactiv.activ.length === 0) return msg.edit("`aucune activité pour le moment`").catch(e => er(e))
+		sy("\x1b[35mliste des activités:\x1b[0m")
+		presence.multiactiv.activ.forEach(async pr => {
+			await sy("[\x1b[35m"+pr.number+"\x1b[0m] "+pr.description)
+		})
+		msg.edit("`liste affichée dans la console`").catch(e => er(e))
+	}
+	if(cmd == "delmultiactivity"){
+		if(!args[0]) return msg.edit("`entre le numéro de l'activité à supprimer (listActivity pour voir la liste)`").catch(e => er(e))
+		const arg = parseInt(args[0])
+		if(presence.multiactiv.activ.length === 0) return msg.edit("`aucune activité pour le moment`").catch(e => er(e))
+		if(arg.isNaN || (presence.multiactiv.activ.length < (arg-1))) return msg.edit("`entre un numéro d'activité à supprimer valide (listActivity pour voir la liste)`").catch(e => er(e))
+		descr = presence.multiactiv.activ[arg].description
+		presence.multiactiv.activ.splice(arg, 1)
+		presence.multiactiv.activ.forEach(pr => {
+			if(pr.number <= arg) return;
+			pr.number = pr.number - 1
+		})
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`multi activité supprimée avec succès ("+descr+")`").catch(e => er(e))
+			
+		})
+	}
+	if(cmd == "addmultiemoji"){
+		if(!args[0]) return msg.edit("`un emoji est nécessaire`").catch(e => er(e))
+		const matches = args[0].match(/<a?:.+?:\d{18}>|\p{Extended_Pictographic}/gu)
+		if(!matches) return msg.edit("`un emoji de base valide est nécessaire`").catch(e => er(e))
+		presence.multiactiv.emojis.push({number: presence.multiactiv.emojis.length, description: matches[0]})
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`emoji d'activité ajouté avec succès ("+matches[0]+")`").catch(e => er(e))
+		})
+	}
+	if(cmd == "listemoji"){
+		if(presence.multiactiv.emojis.length === 0) return msg.edit("`aucun emojis pour le moment`").catch(e => er(e))
+		sy("\x1b[35mliste des emojis:\x1b[0m")
+		presence.multiactiv.emojis.forEach(async pr => {
+			await sy("[\x1b[35m"+pr.number+"\x1b[0m] "+pr.description)
+		})
+		msg.edit("`liste affichée dans la console`").catch(e => er(e))
+	}
+	if(cmd == "delmultiemoji"){
+		if(!args[0]) return msg.edit("`entre le numéro de l'emoji à supprimer (listEmoji pour voir la liste)`").catch(e => er(e))
+		const arg = parseInt(args[0])
+		if(presence.multiactiv.emojis.length === 0) return msg.edit("`aucun emojis pour le moment`").catch(e => er(e))
+		if(arg.isNaN || (presence.multiactiv.emojis.length < (arg-1))) return msg.edit("`entre un numéro d'emoji à supprimer valide (listEmoji pour voir la liste)`").catch(e => er(e))
+		descr = presence.multiactiv.emojis[arg].description
+		presence.multiactiv.emojis.splice(arg, 1)
+		presence.multiactiv.emojis.forEach(pr => {
+			if(pr.number <= arg) return;
+			pr.number = pr.number - 1
+		})
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`emoji supprimé avec succès ("+descr+")`").catch(e => er(e))
+			
+		})
+	}
+	if(cmd == "startmultiactivity"){
+		if(presence.multiactiv.activ.length === 0) return msg.edit("`ajoutez des multi activité avec la commande addMultiActivity`").catch(e => er(e))
+		
+		msg.edit("`démarrage du multi activité, patientez quelques secondes...`").catch(e => er(e))
+		var i = 0
+		let interval = setInterval(() => {
+			const r = new Discord.CustomStatus()
+				.setState(presence.multiactiv.activ[i].description)
+				.setEmoji(presence.multiactiv.emojis[Math.floor(Math.random() * (presence.multiactiv.emojis.length-1))].description)
+				
+				client.user.setActivity(r.toJSON())
+				
+			if(i === (presence.multiactiv.activ.length-1)){
+				i = 0
+			} else {
+				i++
+			}
+			
+		}, 8000)
+		allinterval.push(interval)
+	}
+	if(cmd == "setmultitype"){
+		const list = [
+			"STREAMING",
+			"PLAYING",
+			"WATCHING",
+			"LISTENING"
+		]
+		if(!args[0] || !list.includes(args[0].toUpperCase())) return msg.edit("`veuillez entrer le type poir votre multi présence (STREAMING/LISTENING/WATCHING/PLAYING)`").catch(e => er(e))
+		
+		presence.multi.type = args[0].toUpperCase()
+		fs.writeFile(dirprs, JSON.stringify(presence, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`type de multi présence modifié avec succès ("+args[0].toUpperCase()+")`").catch(e => er(e))
+			
+		})
+	}
+	if(cmd == "startmultipresence"){
+		if(presence.multi.presences.length === 0) return msg.edit("`ajoutez des multi activité avec la commande addMultiActivity`").catch(e => er(e))
+		
+		msg.edit("`démarrage du multi présence, patientez quelques secondes...`").catch(e => er(e))
+		var i = 0
+		var timestamp = Date.now()
+		let time = setInterval(() => {
+			timestamp++
+			if(allinterval.length === 0){
+				clearInterval(time)
+			}
+		}, 1000)
+		let interval = setInterval(() => {
+			
+			const r = new Discord.RichPresence()
+				.setApplicationId('1040390453180235776')
+				.setType(presence.multi.type)
+				.setName(presence.multi.presences[i].description)
+				.setStartTimestamp(timestamp)
+				if(presence.twitch) r.setURL(presence.twitch)
+			client.user.setActivity(r.toJSON())
+			
+			if(i === (presence.multi.presences.length-1)){
+				i = 0
+			} else {
+				i++
+			}
+			
+		}, 8000)
+		allinterval.push(interval)
+	}
+	if(cmd == "clearstatus"){
+		if(allinterval.length > 0){
+		allinterval.forEach(async i => {
+			await clearInterval(i)
+		})
+		}
+		client.user.setPresence({ activity: null })
+		msg.edit("`tous les status ont été réinitialisé`").catch(e => er(e))
+	
+	}
+	if(cmd == "setpresence"){
+		
+		const list = [
+			"STREAMING",
+			"PLAYING",
+			"WATCHING",
+			"LISTENING"
+		]
+		if(!args[0] || !list.includes(args[0].toUpperCase())) return msg.edit("`veuillez entrer le type pour votre présence suivis de la description (STREAMING/LISTENING/WATCHING/PLAYING)`").catch(e => er(e))
+		
+		const r = new Discord.RichPresence()
+				.setApplicationId('1040390453180235776')
+				.setType(args[0])
+				.setName(args.slice(1).join(" ") || client.user.username)
+				.setStartTimestamp(Date.now())
+				if(presence.twitch) r.setURL(presence.twitch)
+			client.user.setActivity(r.toJSON())
+			msg.edit("`présence mise a jour`").catch(e => er(e))
+	}
+	if(cmd == "setactivity"){
+		if(!args[0]) return msg.edit("`un emoji est nécessaire suivis d'une description`").catch(e => er(e))
+		const matches = args[0].match(/<a?:.+?:\d{18}>|\p{Extended_Pictographic}/gu)
+		if(!matches) return msg.edit("`un emoji de base valide est nécessaire suivis d'une description`").catch(e => er(e))
+		const r = new Discord.CustomStatus()
+				.setState(args.slice(1).join(" ") || client.user.username)
+				.setEmoji(matches[0])
+				
+				client.user.setActivity(r.toJSON())
+				msg.edit("`activité mise à jour`").catch(e => er(e))
+	}
+	if(cmd == "helpstatus"){
+		msg.edit("```\n> HELP STATUS\nimagine tu sait pas utiliser une commande :cringe:\n\n1 - [setPresence] et [setActivity] s'utilisent pour avoir une présence/activité fixe ([setPresence] {type} (description) et [setActivity] {emoji} (description))\n\n2 - [addMultiEmoji] et [delMultiEmoji] pour ajouter ou supprimer un emoji pour la commande [startMultiActivity]\n\n3 - [startMultiActivity] et [startMultiPresence] vont lire les description dans l'ordre ([listPresence] et [listActivity] pour voir l'ordre) cependant, [startMultiActivity] va lire les emojis aléatoirement\n\n4 - [clearStatus] va reset n'importe quel multi status ou status fixe\n\n5 - [setMultiType] {STREAMING-PLAYING-LISTENING-WATCHING} sert a configurer le type de status pour la commande [startMultiPresence].\n\nmerci de votre lecture les merdes```").catch(e => er(e))
+	}
+	if(cmd == "helpsettings"){
+		msg.edit("```\n> HELP SETTINGS\nfin frérot ya 3 commandes dans settings\n\n1 - [setPrefix] {prefix} te permet de changer ton prefix (si tu écris cringe derrière la commande ça supprime le prefixe)\n\n2 - [reset] va comme son nom le dit reset le selfbot (tous les fichiers config etc)\n\n3 - [setColor] ne sert pas à grand chose a par pour la commande [embed]\n\n<3 merci d'avoir lu bb```").catch(e => er(e))
+	}
+	
 })
 }, 2000)
 }, 2000)
