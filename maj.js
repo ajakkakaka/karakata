@@ -21,7 +21,7 @@ sy = function(x){
 }
 // installation des modules
 
-
+console.log("\n\x1b[35m------------------------------------------------------------------\n")
 sy("vérification des modules...");
 const { exec } =  require("node:child_process");
 const modules = [
@@ -67,7 +67,7 @@ clearInterval(time);
 
 const fetch = require("node-fetch")
 
-
+console.log("\n\x1b[35m------------------------------------------------------------------\n")
 sy("vérification des fichiers...");
 const fs = require("node:fs")
 
@@ -138,6 +138,8 @@ const rl = readline.createInterface({
 	output: process.stdout,
 	prompt: ""
 })
+console.log("\n\x1b[35m------------------------------------------------------------------\n")
+
 sy("vérification du token...")
 const config = require("./files/config.json"),
 presence = require("./files/presence.json")
@@ -230,9 +232,14 @@ if(config.token){
 	ftoken()
 }
 
+
+
 client.on("ready", () => {
-	ok("selfbot connecté à: "+client.user.username+"#"+client.user.discriminator+", avec le prefixe: \x1b[35m"+config.prefixe+"\x1b[0m")
+	console.log("\n\x1b[35m------------------------------------------------------------------\n")
+	ok("Bienvenue sur le Chiseled Selfbot, "+client.user.username+"#"+client.user.discriminator+".\n ton préfixe est le suivant: \x1b[35m"+config.prefixe+"\x1b[0m")
 	rl.close()
+	console.log("\n\x1b[35m------------------------------------------------------------------\n")
+	sy("\x1b[35mlogs:\x1b[0m")
 })
 
 
