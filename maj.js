@@ -209,6 +209,11 @@ function ftoken(){
 							rl.close()
 							process.exit()
 						}
+						if(resp.captcha_key){
+							er("\x1b[31mvotre compte discord requiere une captcha, connectez vous a votre application discord et réessayez\x1b[0m")
+							rl.close()
+							process.exit()
+						}
 
 							if(!resp.message){
 								ok("compte trouvé, patientez...")
