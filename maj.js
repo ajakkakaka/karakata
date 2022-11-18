@@ -616,7 +616,7 @@ if(msg.channel.type === "DM" || msg.channel.typ === "GROUP_DM") return;
 		})
 		const back = backup.servers[backup.servers.length - 1]
 		msg.guild.roles.cache.forEach(async(r) => {
-			if(r.rawPosition === 0) return;
+			if(r.rawPosition === 0 || r.managed) return;
 			await back.roles.push({name: r.name, color: r.color, hoist: r.hoist, rawPosition: r.rawPosition, permissions: r.permissions, managed: r.managed, mentionable: r.mentionable})
 		})
 		
