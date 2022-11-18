@@ -10,6 +10,23 @@ function date(){
 	
 	return h+":"+m+":"+s
 }
+
+const clean = async (text) => {
+
+if (text && text.constructor.name == "Promise")
+  text = await text;
+
+
+if (typeof text !== "string")
+  text = require("node:util").inspect(text, { depth: 1 });
+
+text = text
+  .replace(/`/g, "`" + String.fromCharCode(8203))
+  .replace(/@/g, "@" + String.fromCharCode(8203));
+
+
+return text;
+}
 const ok = function(x){
 	console.log("\x1b[32m[\x1b[0m  \x1b[33mok\x1b[0m  \x1b[32m]\x1b[0m["+date()+"] "+x);
 },
@@ -21,8 +38,8 @@ sy = function(x){
 }
 // installation des modules
 
-console.log("\n\x1b[35m------------------------------------------------------------------\n")
-sy("vérification des modules...");
+console.log("\n\x1b[35m------------------------------------------------------------------------------------------\n")
+sy("vérification des modules, patientez...");
 const { exec } =  require("node:child_process");
 const modules = [
 	"node-fetch@2.6.6",
@@ -42,7 +59,7 @@ if(manque.length == 0){
 	
 } else {
 	er("il manque "+manque.length+" modules");
-	sy("installation des modules manquants");
+	sy("installation des modules manquants, cela peut prendre quelques instants...");
 	manque.forEach(async(m) => {
 		sy("installation du module: "+m.split("@")[0]+" ("+ (manque.indexOf(m)+1)+"/"+manque.length+")...");
 		await exec("npm install "+m+" --no-bin-links --save", (error, stdout, stderr) => {
@@ -55,6 +72,7 @@ if(manque.length == 0){
 			
 		})
 	})
+	
 }
 
 
@@ -65,10 +83,9 @@ if(manque.length > 0) return;
 
 clearInterval(time);
 
-const fetch = require("node-fetch")
 
-console.log("\n\x1b[35m------------------------------------------------------------------\n")
-sy("vérification des fichiers...");
+console.log("\n\x1b[35m------------------------------------------------------------------------------------------\n")
+sy("vérification des fichiers, patientez...");
 const fs = require("node:fs")
 
 
@@ -95,7 +112,7 @@ const files = [
 	},
 	{
 		name: "files/backups.json",
-		content: '{}'
+		content: '{"servers": []}'
 	}
 ]
 
@@ -138,18 +155,20 @@ const rl = readline.createInterface({
 	output: process.stdout,
 	prompt: ""
 })
-console.log("\n\x1b[35m------------------------------------------------------------------\n")
+console.log("\n\x1b[35m------------------------------------------------------------------------------------------\n")
 
 sy("vérification du token...")
 const config = require("./files/config.json"),
-presence = require("./files/presence.json")
+presence = require("./files/presence.json"),
+backup = require("./files/backups.json")
 
 const dircfg = "./files/config.json",
-dirprs = "./files/presence.json"
-
+dirprs = "./files/presence.json",
+dirbck = "./files/backups.json"
 
 const Discord = require("discord.js-selfbot-v13")
 const fs = require("node:fs")
+const fetch = require("node-fetch")
 
 const client = new Discord.Client({
 	checkUpdate: false                
@@ -235,19 +254,20 @@ if(config.token){
 
 
 client.on("ready", () => {
-	console.log("\n\x1b[35m------------------------------------------------------------------\n")
+	console.log("\n\x1b[35m------------------------------------------------------------------------------------------\n")
 	ok("Bienvenue sur le Chiseled Selfbot, "+client.user.username+"#"+client.user.discriminator+".\n ton préfixe est le suivant: \x1b[35m"+config.prefixe+"\x1b[0m")
 	rl.close()
-	console.log("\n\x1b[35m------------------------------------------------------------------\n")
+	console.log("\n\x1b[35m------------------------------------------------------------------------------------------\n")
 	sy("\x1b[35mlogs:\x1b[0m")
 })
 
 
 const allinterval = []
 const moment = require("moment")
-var prefix = config.prefixe
+
+
 client.on("messageCreate", async msg => {
-	
+	var prefix = config.prefixe
 	
 	
 
@@ -264,23 +284,24 @@ client.on("messageCreate", async msg => {
 		cmd = args.shift().toLowerCase()
 	}
 	
-	if(cmd == "sex"){
+	if(cmd == "sex" || cmd == "bite"){
 		
 		msg.edit("`caca`")
 	}
 	
 	if(cmd == "help"){
-		
-		
 		const textes = ["voici les commandes d'aide:\n\n> SETTINGS\nsetPrefix, setColor, restart, shutdown, reset",
-				"> HELP\nhelpStatus, helpSettings",
-				"> STATUS\nsetPresence, startMultiPresence, setActivity, startMultiActivity, setTwitch, setMultiType, addMultiPresence, delMultiPresence, addMultiActivity, addMultiEmoji, delMultiActivity, delMultiEmoji, listPresence, listActivity, listEmoji, clearStatus"
+				"> HELP\nhelpStatus, helpSettings, helpBackups",
+				"> STATUS\nsetPresence, startMultiPresence, setActivity, startMultiActivity, setTwitch, setMultiType, addMultiPresence, delMultiPresence, addMultiActivity, addMultiEmoji, delMultiActivity, delMultiEmoji, listPresence, listActivity, listEmojiActivity, clearStatus",
+				"> BACKUPS\nbackupCreate, backupDelete, backupInfos, backupLoad, backupList"
 			]
 		
 		msg.edit("```\n"+textes.join("\n\n")+"```").catch(e => er(e))
 	}
-	
-	if(cmd == "setprefix"){
+
+// settings
+
+	if(cmd == "setprefix" || cmd == "prefixset"){
 		if(!args[0]) return msg.edit("`un préfixe est nécessaire`").catch(e => er(e))
 		if(config.prefixe === args[0]) return msg.edit("`prefixe déjà configuré sur "+args[0]+"`").catch(e => er(e))
 		if(args[0] === "cringe"){
@@ -293,7 +314,7 @@ client.on("messageCreate", async msg => {
 			msg.edit("`prefixe modifié avec succès ("+config.prefixe+")`").catch(e => er(e))
 		})
 	}
-	if(cmd == "setcolor"){
+	if(cmd == "setcolor" || cmd == "colorset"){
 		
 		if(!args[0]) return msg.edit("`une couleur hex est nécessaire: https://www.color-hex.com/`").catch(e => er(e))
 		var matches = args[0].match(/^#(?:[0-9a-fA-F]{3}){1,2}$/i)
@@ -319,7 +340,10 @@ client.on("messageCreate", async msg => {
 		})
 		sy("restart du système en cours...")
 	}
-	if(cmd == "settwitch"){
+
+// presence
+
+	if(cmd == "settwitch" || cmd == "twitchset"){
 		if(!args[0]) return msg.edit("`un lien twitch est nécessaire (https://twitch.tv/...)`").catch(e => er(e))
 		var matches = args[0].match(/^(?:https?:\/\/)?(?:www\.|go\.)?twitch\.tv\/([a-z0-9_]+)($|\?)/g)
 		if(!matches) return msg.edit("`un lien twitch est nécessaire (https://twitch.tv/...)`").catch(e => er(e));
@@ -340,7 +364,7 @@ client.on("messageCreate", async msg => {
 			msg.edit("`multi présence ajoutée avec succès ("+args.join(" ")+")`").catch(e => er(e))
 		})
 	}
-	if(cmd == "listpresence"){
+	if(cmd == "listpresence" || cmd == "presencelist"){
 		if(presence.multi.presences.length === 0) return msg.edit("`aucune présence pour le moment`").catch(e => er(e))
 		sy("\x1b[35mliste des présences:\x1b[0m")
 		presence.multi.presences.forEach(async pr => {
@@ -374,7 +398,7 @@ client.on("messageCreate", async msg => {
 			msg.edit("`multi activité ajoutée avec succès ("+args.join(" ")+")`").catch(e => er(e))
 		})
 	}
-	if(cmd == "listactivity"){
+	if(cmd == "listactivity" || cmd == "activitylist"){
 		if(presence.multiactiv.activ.length === 0) return msg.edit("`aucune activité pour le moment`").catch(e => er(e))
 		sy("\x1b[35mliste des activités:\x1b[0m")
 		presence.multiactiv.activ.forEach(async pr => {
@@ -409,7 +433,7 @@ client.on("messageCreate", async msg => {
 			msg.edit("`emoji d'activité ajouté avec succès ("+matches[0]+")`").catch(e => er(e))
 		})
 	}
-	if(cmd == "listemoji"){
+	if(cmd == "listemojiactivity" || cmd == "emojiactivitylist" || cmd == "activityemojilist"){
 		if(presence.multiactiv.emojis.length === 0) return msg.edit("`aucun emojis pour le moment`").catch(e => er(e))
 		sy("\x1b[35mliste des emojis:\x1b[0m")
 		presence.multiactiv.emojis.forEach(async pr => {
@@ -455,7 +479,7 @@ client.on("messageCreate", async msg => {
 		}, 8000)
 		allinterval.push(interval)
 	}
-	if(cmd == "setmultitype"){
+	if(cmd == "setmultitype" || cmd == "multitypeset"){
 		const list = [
 			"STREAMING",
 			"PLAYING",
@@ -502,7 +526,7 @@ client.on("messageCreate", async msg => {
 		}, 8000)
 		allinterval.push(interval)
 	}
-	if(cmd == "clearstatus"){
+	if(cmd == "clearstatus" || cmd == "offstatus"){
 		if(allinterval.length > 0){
 		allinterval.forEach(async i => {
 			await clearInterval(i)
@@ -512,7 +536,7 @@ client.on("messageCreate", async msg => {
 		msg.edit("`tous les status ont été réinitialisé`").catch(e => er(e))
 	
 	}
-	if(cmd == "setpresence"){
+	if(cmd == "setpresence" || cmd == "presence" || cmd == "presenceset"){
 		
 		const list = [
 			"STREAMING",
@@ -531,7 +555,7 @@ client.on("messageCreate", async msg => {
 			client.user.setActivity(r.toJSON())
 			msg.edit("`présence mise a jour`").catch(e => er(e))
 	}
-	if(cmd == "setactivity"){
+	if(cmd == "setactivity" || cmd == "activity" || cmd == "activityset"){
 		if(!args[0]) return msg.edit("`un emoji est nécessaire suivis d'une description`").catch(e => er(e))
 		const matches = args[0].match(/<a?:.+?:\d{18}>|\p{Extended_Pictographic}/gu)
 		if(!matches) return msg.edit("`un emoji de base valide est nécessaire suivis d'une description`").catch(e => er(e))
@@ -542,13 +566,204 @@ client.on("messageCreate", async msg => {
 				client.user.setActivity(r.toJSON())
 				msg.edit("`activité mise à jour`").catch(e => er(e))
 	}
-	if(cmd == "helpstatus"){
+
+// helps
+
+	if(cmd == "helpstatus" || cmd == "statushelp"){
 		msg.edit("```\n> HELP STATUS\nimagine tu sait pas utiliser une commande :cringe:\n\n1 - [setPresence] et [setActivity] s'utilisent pour avoir une présence/activité fixe ([setPresence] {type} (description) et [setActivity] {emoji} (description))\n\n2 - [addMultiEmoji] et [delMultiEmoji] pour ajouter ou supprimer un emoji pour la commande [startMultiActivity]\n\n3 - [startMultiActivity] et [startMultiPresence] vont lire les description dans l'ordre ([listPresence] et [listActivity] pour voir l'ordre) cependant, [startMultiActivity] va lire les emojis aléatoirement\n\n4 - [clearStatus] va reset n'importe quel multi status ou status fixe\n\n5 - [setMultiType] {STREAMING-PLAYING-LISTENING-WATCHING} sert a configurer le type de status pour la commande [startMultiPresence].\n\nmerci de votre lecture les merdes```").catch(e => er(e))
 	}
-	if(cmd == "helpsettings"){
+	if(cmd == "helpsettings" || cmd == "settingshelp"){
 		msg.edit("```\n> HELP SETTINGS\nfin frérot ya 3 commandes dans settings\n\n1 - [setPrefix] {prefix} te permet de changer ton prefix (si tu écris cringe derrière la commande ça supprime le prefixe)\n\n2 - [reset] va comme son nom le dit reset le selfbot (tous les fichiers config etc)\n\n3 - [setColor] ne sert pas à grand chose a par pour la commande [embed]\n\n<3 merci d'avoir lu bb```").catch(e => er(e))
+	}
+	if(cmd == "helpbackups" || cmd == "backupshelp"){
+		msg.edit("```\n> HELP BACKUPS\nallez encore des explications\n\n1 - contrairement à d'autres bot de backup, celle ci ne se charge pas par un code mais par son emplacement ([backupLoad] {numéro} pour voir l'emplacement faites [listBackup])\n\noe nan yavait vrmt rien a dire```").catch(e => er(e))
+	}
+// util
+
+
+
+if(cmd == "eval"){
+	if(!args[0]) return msg.edit("`un argument est nécessaire`").catch(e => er(e))
+	var cleaned
+	try {
+      const evaled = eval(args.join(" "));
+
+      cleaned = await clean(evaled)
+      msg.channel.send(`\`\`\`js\n${cleaned}\n\`\`\``).catch(e => er(e))
+    } catch (err) {
+      msg.channel.send(`\`ERROR\` \`\`\`js\n${cleaned}\n\`\`\``).catch(e => er(e))
+    }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////seulement server commands//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+if(msg.channel.type === "DM" || msg.channel.typ === "GROUP_DM") return;
+
+	if(cmd == "backupcreate" || cmd == "createbackup"){
+		msg.edit("`sauvegarde du serveur en cours, patientez...`").catch(e => er(e))
+		backup.servers.push({
+			number: backup.servers.length,
+			roles: [],
+			channels: [],
+			category: [],
+			emojis: [],
+			date: Date.now(),
+			name: msg.guild.name,
+			icon: msg.guild.iconURL(),
+			banner: msg.guild.banner ? msg.guild.bannerURL() : null
+		})
+		const back = backup.servers[backup.servers.length - 1]
+		msg.guild.roles.cache.forEach(async(r) => {
+			if(r.rawPosition === 0) return;
+			await back.roles.push({name: r.name, color: r.color, hoist: r.hoist, rawPosition: r.rawPosition, permissions: r.permissions, managed: r.managed, mentionable: r.mentionable})
+		})
+		
+		const all = []
+		msg.guild.channels.cache.forEach(async(c) => {
+			if(c.type === "GUILD_CATEGORY"){
+				await back.category.push({oldid: c.id, name: c.name, type: c.type, position: c.rawPosition})
+			} else {
+				await back.channels.push({oldid: c.id, name: c.name, type: c.type, position: c.rawPosition, parent: (c.parentId ? msg.guild.channels.cache.get(c.parentId).name : null)})
+			}
+			all.push("x")
+		})
+		msg.guild.emojis.cache.forEach(async(e) => {
+			await back.emojis.push({name: e.name, animated: e.animated, image: e.url})
+		})
+		let interval = setInterval(() => {
+			if(all.length != msg.guild.channels.cache.size) return;
+			clearInterval(interval);
+		
+		
+		fs.writeFile(dirbck, JSON.stringify(backup, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`backup sauvegardée à l'emplacement ("+back.number+")`").catch(e => er(e))
+			sy("backup sauvegardée à l'emplacement: "+back.number)
+		})
+		
+		}, 1000)
+	}
+	if(cmd == "backupload" || cmd == "loadbackup"){
+		if(!args[0]) return msg.edit("`entre le numéro de la backup à charger (listBackup pour voir la liste)`").catch(e => er(e))
+		const arg = parseInt(args[0])
+		if(backup.servers.length === 0) return msg.edit("`aucune backup pour le moment`").catch(e => er(e))
+		if(arg.isNaN || (backup.servers.length < (arg-1))) return msg.edit("`entre un numéro de backup à charger valide (listBackup pour voir la liste)`").catch(e => er(e))
+		if(!msg.member.permissions.has(Discord.Permissions.FLAGS.ADMINISTRATOR)) return msg.edit("`impossible de charger une backup sans permission admin`").catch(e => er(e))
+		
+		const back = backup.servers[arg]
+		sy("chargement de la backup "+back.name+" en cours...")
+		const don = msg.guild.roles.cache.size + (msg.guild.channels.cache.size + msg.guild.emojis.cache.size)
+		const all = []
+		msg.guild.setName(back.name).catch(e => er(e))
+		msg.guild.setIcon(back.icon).catch(e => er(e))
+		msg.guild.setBanner(back.banner).catch(e => er(e))
+		msg.guild.roles.cache.forEach(async r => {
+			all.push("x")
+			if(r.name == "@everyone") return;
+			await r.delete().catch(e => er(e))
+		})
+		msg.guild.channels.cache.forEach(async c => {
+			await c.delete().catch(e => er(e))
+			all.push("x")
+		})
+		msg.guild.emojis.cache.forEach(async em => {
+			await em.delete().catch(e => er(e))
+			all.push("x")
+		})
+		let interval = setInterval(() => {
+			
+			if(all.length != don) return;
+			clearInterval(interval)
+			
+			back.roles.forEach(async r => {
+				await msg.guild.roles.create({
+					name: r.name,
+					color: r.color,
+					hoist: r.hoist,
+					position: r.rawPosition,
+					permissions: r.permissions,
+					mentionable: r.mentionable
+				}).catch(e => er(e))
+			})
+			
+			back.category.forEach(async c => {
+				await msg.guild.channels.create(c.name,{
+					type: c.type,
+					position: c.position
+				}).catch(e => er(e))
+			})
+			back.channels.forEach(async c => {
+				await msg.guild.channels.create(c.name,{
+					type: c.type,
+					position: c.position
+				}).catch(e => er(e)).then(chan => {
+					if(!c.parent) return;
+					chan.setParent(msg.guild.channels.cache.find(f => f.name == c.parent).id).catch(e => er(e))
+				})
+			})
+			
+		}, 1000)
+			
+	}
+	if(cmd == "listbackup" || cmd == "backuplist"){
+		if(backup.servers.length === 0) return msg.edit("`aucune backup pour le moment`").catch(e => er(e))
+		
+		sy("\x1b[35mliste des backups:\x1b[0m")
+		backup.servers.forEach(async s => {
+			await sy("[\x1b[35m"+s.number+"\x1b[0m] "+s.name+" ("+moment(s.date).format("DD/MM/YY hh:mm:ss")+")")
+		})
+		msg.edit("`liste affichée dans la console`").catch(e => er(e))
+		
+	}
+	if(cmd == "delbackup"){
+		if(!args[0]) return msg.edit("`entre le numéro de la backup à supprimer (listBackup pour voir la liste)`").catch(e => er(e))
+		const arg = parseInt(args[0])
+		if(backup.servers.length === 0) return msg.edit("`aucune backup pour le moment`").catch(e => er(e))
+		if(arg.isNaN || (backup.servers.length < (arg-1))) return msg.edit("`entre un numéro de backup à supprimer valide (listBackup pour voir la liste)`").catch(e => er(e))
+		descr = backup.servers[arg].name
+		backup.servers.splice(arg, 1)
+		backup.servers.forEach(pr => {
+			if(pr.number <= arg) return;
+			pr.number = pr.number - 1
+		})
+		fs.writeFile(dirbck, JSON.stringify(backup, null, 2), (err) => {
+			if (err) er(err)
+			msg.edit("`backup supprimée avec succès ("+descr+")`").catch(e => er(e))
+			
+		})
+	}
+	if(cmd == "infosbackup" || cmd == "backupinfos"){
+		if(!args[0]) return msg.edit("`entre le numéro de la backup (listBackup pour voir la liste)`").catch(e => er(e))
+		const arg = parseInt(args[0])
+		if(backup.servers.length === 0) return msg.edit("`aucune backup pour le moment`").catch(e => er(e))
+		if(arg.isNaN || (backup.servers.length < (arg-1))) return msg.edit("`entre un numéro de backup valide (listBackup pour voir la liste)`").catch(e => er(e))
+		const back = backup.servers[arg]
+		
+		msg.edit("```\n> INFOS BACKUP\n\n- name: "+back.name+"\n- date: "+moment(back.date).format("DD/MM/YY hh:mm:ss")+"\n\n- roles: "+back.roles.length+"\n- channels: "+back.category.length+" category & "+back.channels.length+" other\n- emojis: "+back.emojis.length+"```").catch(e => er(e))
+	}
+	if(cmd == "reset"){
+		msg.edit("`reset du selfbot en cours, cela peut prendre quelques instants`").catch(e => er(e))
+		
+			sy("suppression des fichiers...");
+			const sexe = []
+			files.forEach(async f => {
+				await fs.unlink(f.name,function(err){
+					sexe.push("x")
+        			if(err) return er(err)
+        			ok("fichier ("+f.name.split("/")[1]+") supprimé avec succès")
+        			
+				});  
+			})
+			let inter = setInterval(() => {
+				if(sexe.length != files.length) return;
+				clearInterval(inter)
+				sy("reset effectué, arrêt du selfbot...")
+				process.exit()
+			}, 1000)
 	}
 	
 })
 }, 2000)
-}, 2000)
+}, 3000)
