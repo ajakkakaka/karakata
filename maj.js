@@ -122,11 +122,11 @@ try {
 	if ( e.code != 'EEXIST' ) er(e)
 }
 var miss = []
-files.forEach(f => {
+files.forEach(async f => {
 	try {
-		const t = require("./"+f.name)
+		const t = await require("./"+f.name)
 	} catch(err){
-		miss.push(f)
+		await miss.push(f)
 	}
 })
 
