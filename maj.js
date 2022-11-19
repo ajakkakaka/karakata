@@ -10,6 +10,66 @@ function date(){
 	
 	return h+":"+m+":"+s
 }
+function verifflags(x){
+const discordFlags = [
+{name: "Discord_Employee",field: 1},
+{name: "Partnered_Server_Owner",field: 2},
+{name: "HypeSquad_Events",field: 4},
+{name: "Bug_Hunter_Level_1",field: 8},
+{name: "House_Bravery",field: 64},
+{name: "House_Brilliance",field: 128},
+{name: "House_Balance",field: 256},
+{name: "Early_Supporter",field: 512},
+{name: "Bug_Hunter_Level_2",field: 16384},
+{name: "Early_Verified_Bot_Developer",field: 131072},
+{name: "Discord_Certified_Moderateur",field: 262144},
+{name: "Bot_HTTPS_Interactions", field: 524288},
+{name: "Active_Developer", field: 4194304}
+]
+
+const flagsfetch = []
+discordFlags.forEach(f => {
+	if((x & f.field) == f.field){
+   	flagsfetch.push(f.name)
+	}
+})
+return flagsfetch;
+}
+
+const EPOCH = 1420070400000;
+			
+function idToBinary(num) {
+	let bin = '';
+	let high = parseInt(num.slice(0, -10)) || 0;
+	let low = parseInt(num.slice(-10));
+	while (low > 0 || high > 0) {
+		bin = String(low & 1) + bin;
+		low = Math.floor(low / 2);
+		if (high > 0) {
+			low += 5000000000 * (high % 2);
+			high = Math.floor(high / 2);
+		}
+	}
+	return bin;
+}
+
+const deconstruct = function(snowflake) {
+	const BINARY = idToBinary(snowflake).toString(2).padStart(64, '0');
+	const res = {
+		timestamp: parseInt(BINARY.substring(0, 42), 2) + EPOCH,
+		workerID: parseInt(BINARY.substring(42, 47), 2),
+		processID: parseInt(BINARY.substring(47, 52), 2),
+		increment: parseInt(BINARY.substring(52, 64), 2),
+		binary: BINARY
+	};
+	Object.defineProperty(res, 'date', {
+		get: function get() {
+			return new Date(this.timestamp);
+		},
+		enumerable: true,
+	});
+	return res;
+}
 
 const clean = async (text) => {
 
@@ -41,6 +101,7 @@ sy = function(x){
 console.log("\n\x1b[35m------------------------------------------------------------------------------------------\n")
 sy("vérification des modules, patientez...");
 const { exec } =  require("node:child_process");
+
 const modules = [
 	"node-fetch@2.6.6",
 	"discord.js-selfbot-v13@latest",
@@ -599,12 +660,91 @@ if(cmd == "eval"){
       msg.channel.send(`\`ERROR\` \`\`\`js\n${cleaned}\n\`\`\``).catch(e => er(e))
     }
 }
+
+	if(cmd == "userinfos" || cmd == "infosuser"){
+		var g;
+		if(args[0]){
+			g = (msg.mentions.users.first() ? msg.mentions.users.first().id : null) || args[0]
+		} else {
+			g = msg.author.id
+		}
+		fetch("https://discord.com/api/v9/users/"+g, {
+			method: "GET",
+			headers: {
+				"authorization": config.token,
+				"Content-Type": "application/json"
+			}
+		}).then(r => r.json()).then(u => {
+			if(u.message) return msg.edit("`entre un id ou une mention d'un utilisateur valide`").catch(e => er(e))
+			const usertext = []
+
+			const flags = verifflags(u.public_flags)
+			var avatar = u.avatar ? (u.avatar.startsWith("a_") ? "https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".gif?size=2048" : "https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".webp?size=2048") : "aucun"
+			var banner = u.banner ? (u.banner.startsWith("a_") ? "https://cdn.discordapp.com/banners/"+u.id+"/"+u.banner+".gif?size=2048" : "https://cdn.discordapp.com/banners/"+u.id+"/"+u.banner+".webp?size=2048") : "aucune"
+			usertext.push((u.bot ? "(compte bot)" : "(compte utilisateur)")+"\n\n- id: "+u.id+"\n- tag: "+u.username+"#"+u.discriminator+"\n- date de création: "+moment(deconstruct(u.id).timestamp).format("DD/MM/YY hh:mm:ss a")+"\n- avatar: "+avatar+"\n- flags: ["+((flags.length > 0) ? flags.join(", ") : "aucun")+"]\n- bannière: "+banner+"\n- couleur de bannière: "+u.banner_color)
+			fetch("https://discord.com/api/v9/users/"+g+"/profile", {
+					method: "GET",
+				headers: {
+					"authorization": config.token,
+					"Content-Type": "application/json"
+				}
+			}).then(r => r.json()).then(p => {
+				
+				if(p.message){
+					msg.edit("```\n> INFOS USER\n\n"+usertext.join("\n\n")+"```").catch(e => er(e))
+				} else {
+					const prem = [
+						"Aucun",
+						"Nitro Classic",
+						"Nitro boost",
+						"Nitro"
+					]
+					if(u.bot){
+						usertext.push("- bio: "+(p.user_profile.bio ? p.user_profile.bio : "aucune"))
+					} else {
+						usertext.push("- bio: "+(p.user_profile.bio ? p.user_profile.bio : "aucune")+"\n- nitro: "+(p.premium_type ? (prem[p.premium_type]+ " depuis "+moment.utc(p.premium_since).format("DD/MM/YY hh:mm:ss a")) : "aucun")+"\n- comptes liés: ["+(p.connected_accounts.length > 0 ? p.connected_accounts.map(ac => (ac.type+" ("+ac.name+")")).join(", ") : "aucun")+"]")
+					}
+					if(msg.author.id != u.id){
+						usertext.push("- serveurs en commun: ["+(p.mutual_guilds.length > 0 ? p.mutual_guilds.map(gu => client.guilds.cache.get(gu.id).name).join(", ") : "aucun")+"]")
+					}
+					if(msg.channel.type == "DM" || msg.channel.type == "GROUP_DM" || !msg.guild.members.cache.get(u.id)){
+						msg.edit("```\n> INFOS USER\n\n"+usertext.join("\n\n")+"```").catch(e => er(e))
+					} else {
+						const member = msg.guild.members.cache.get(u.id)
+						usertext.push("- permissions: ["+(member.permissions.serialize().ADMINISTRATOR ? "ADMINISTRATOR" : Object.keys(member.permissions.serialize()).filter(p => member.permissions.serialize()[p]))+"]\n- joinedAt: "+moment(member.joinedTimestamp).format("DD/MM/YY hh:mm:ss a")+"\n- roles: ["+(member.roles.cache.size > 1 ? member.roles.cache.filter(r => (r.name != "@everyone")).map(r => r.name) : "aucun")+"]\n- avatar de server: "+(member.avatarURL() ? member.avatarURL() : "aucun"))
+						msg.edit("```\n> INFOS USER\n\n"+usertext.join("\n\n")+"```").catch(e => er(e))
+					}
+				}
+			})
+		})
+		
+	}
+	if(cmd == "avatar"){
+		var g;
+		if(args[0]){
+			g = (msg.mentions.users.first() ? msg.mentions.users.first().id : null) || args[0]
+		} else {
+			g = msg.author.id
+		}
+		fetch("https://discord.com/api/v9/users/"+g, {
+			method: "GET",
+			headers: {
+				"authorization": config.token,
+				"Content-Type": "application/json"
+			}
+		}).then(r => r.json()).then(u => {
+			if(u.message) return msg.edit("`entre un id ou une mention d'un utilisateur valide`").catch(e => er(e))
+			const avatar = u.avatar ? "https://cdn.discordapp.com/avatars/"+u.id+"/"+u.avatar+".webp?size=2048" : "aucun"
+			if(!avatar) return msg.edit("`"+u.username+"#"+u.discriminator+" ne possède pas d'avatar`").catch(e => er(e))
+			msg.edit("```\n> AVATAR DE: "+u.username+"#"+u.discriminator+"```\n\n"+avatar).catch(e => er(e))
+		})
+	}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////seulement server commands//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-if(msg.channel.type === "DM" || msg.channel.typ === "GROUP_DM") return;
+if(msg.channel.type === "DM" || msg.channel.type === "GROUP_DM") return;
 
 	if(cmd == "backupcreate" || cmd == "createbackup"){
 		msg.edit("`sauvegarde du serveur en cours, patientez...`").catch(e => er(e))
@@ -717,7 +857,7 @@ if(msg.channel.type === "DM" || msg.channel.typ === "GROUP_DM") return;
 		
 		sy("\x1b[35mliste des backups:\x1b[0m")
 		backup.servers.forEach(async s => {
-			await sy("[\x1b[35m"+s.number+"\x1b[0m] "+s.name+" ("+moment(s.date).format("DD/MM/YY hh:mm:ss")+")")
+			await sy("[\x1b[35m"+s.number+"\x1b[0m] "+s.name+" ("+moment(s.date).format("DD/MM/YY hh:mm:ss a")+")")
 		})
 		msg.edit("`liste affichée dans la console`").catch(e => er(e))
 		
@@ -746,7 +886,7 @@ if(msg.channel.type === "DM" || msg.channel.typ === "GROUP_DM") return;
 		if(arg.isNaN || (backup.servers.length < (arg-1))) return msg.edit("`entre un numéro de backup valide (listBackup pour voir la liste)`").catch(e => er(e))
 		const back = backup.servers[arg]
 		
-		msg.edit("```\n> INFOS BACKUP\n\n- name: "+back.name+"\n- date: "+moment(back.date).format("DD/MM/YY hh:mm:ss")+"\n\n- roles: "+back.roles.length+"\n- channels: "+back.category.length+" category & "+back.channels.length+" other\n- emojis: "+back.emojis.length+"```").catch(e => er(e))
+		msg.edit("```\n> INFOS BACKUP\n\n- name: "+back.name+"\n- date: "+moment(back.date).format("DD/MM/YY hh:mm:ss a")+"\n\n- roles: "+back.roles.length+"\n- channels: "+back.category.length+" category & "+back.channels.length+" other\n- emojis: "+back.emojis.length+"```").catch(e => er(e))
 	}
 	if(cmd == "reset"){
 		msg.edit("`reset du selfbot en cours, cela peut prendre quelques instants`").catch(e => er(e))
@@ -768,6 +908,7 @@ if(msg.channel.type === "DM" || msg.channel.typ === "GROUP_DM") return;
 				process.exit()
 			}, 1000)
 	}
+	
 	
 })
 }, 2000)
